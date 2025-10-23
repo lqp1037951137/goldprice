@@ -8,22 +8,38 @@ let reconnectAttempts = 0;
 let reconnectTimeout;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-/**
- * 浙商积存金
- * const getJDPriceZS = async () => {
-  const data = await fetch(
-    "https://api.jdjygold.com/gw2/generic/jrm/h5/m/stdLatestPrice?productSku=1961543816",
-    {
-      method: "post",
-      data: {
-        reqData: { productSku: "1961543816" },
-      },
-      timeout: 30,
+// 获取浙商积存金价格
+async function fetchZSGoldPrice() {
+  try {
+    const response = await fetch(
+      "https://api.jdjygold.com/gw2/generic/jrm/h5/m/stdLatestPrice?productSku=1961543816",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+          Origin: "https://www.jd.com",
+          Referer: "https://www.jd.com/",
+        },
+        body: JSON.stringify({
+          reqData: { productSku: "1961543816" },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP错误: ${response.status}`);
     }
-  ).then((response) => response.json());
-  state.priceZS = data.resultData.datas.price;
-};
- */
+
+    const data = await response.json();
+    return data.resultData.datas.price;
+  } catch (error) {
+    console.error("获取浙商金价失败:", error);
+    throw error;
+  }
+}
 
 // 获取配置
 function getConfig() {
@@ -33,7 +49,7 @@ function getConfig() {
       "httpUrl",
       "https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice"
     ),
-    httpRefreshInterval: config.get("httpRefreshInterval", 1000),
+    httpRefreshInterval: config.get("httpRefreshInterval", 3000),
     wsUrl: config.get("wsUrl", "wss://webhqv1.jrjr.com:39920/ws"),
     wsReconnectInterval: config.get("wsReconnectInterval", 5000),
   };
@@ -59,6 +75,41 @@ function throttle(func, limit) {
       }, limit - (Date.now() - lastRan));
     }
   };
+}
+
+// 获取动态WebSocket链接
+async function fetchWebSocketUrl() {
+  try {
+    const response = await fetch("https://www.jrjr.com/api/getDomainInfo", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`获取WebSocket链接失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.code === 0 && data.data && data.data.hq_ws_links) {
+      // 获取hq_ws_links中的第一条
+      const wsLinks = data.data.hq_ws_links;
+      const firstKey = Object.keys(wsLinks)[0];
+      if (firstKey && wsLinks[firstKey]) {
+        const wsUrl = wsLinks[firstKey];
+        console.log("获取到动态WebSocket链接:", wsUrl, `(key: ${firstKey})`);
+        return wsUrl;
+      }
+    }
+    throw new Error("响应数据格式错误");
+  } catch (error) {
+    console.error("获取动态WebSocket链接失败:", error);
+    throw error;
+  }
 }
 
 // 获取HTTP金价
@@ -90,7 +141,7 @@ async function fetchGoldPrice() {
 }
 
 // 设置WebSocket连接
-function setupWebSocket(wsStatusBarItem) {
+async function setupWebSocket(wsStatusBarItem) {
   try {
     // 关闭已存在的连接
     if (ws) {
@@ -98,10 +149,22 @@ function setupWebSocket(wsStatusBarItem) {
       ws.close();
     }
 
+    wsStatusBarItem.text = `$(radio-tower) 获取链接中...`;
+
+    // 获取动态WebSocket链接
+    let wsUrl;
+    try {
+      wsUrl = await fetchWebSocketUrl();
+    } catch (error) {
+      // 如果获取失败,使用配置中的备用链接
+      const config = getConfig();
+      wsUrl = config.wsUrl;
+      console.log("使用备用WebSocket链接:", wsUrl);
+    }
+
     wsStatusBarItem.text = `$(radio-tower) 连接中...`;
 
-    const config = getConfig();
-    ws = new WebSocket(config.wsUrl);
+    ws = new WebSocket(wsUrl);
 
     ws.on("open", () => {
       console.log("WebSocket已连接");
@@ -118,10 +181,10 @@ function setupWebSocket(wsStatusBarItem) {
       throttle((message) => {
         try {
           const data = JSON.parse(message.toString());
-          if (data && data.length && data[0].c === "XAU") {
-            const price = data[0].a;
+          if (data && data.length && data[0].symbol === "GOLD") {
+            const price = data[0].bid; // 使用买入价
             wsStatusBarItem.text = `$(radio-tower) ${price}`;
-            wsStatusBarItem.tooltip = `WebSocket实时数据 | 更新时间: ${new Date().toLocaleTimeString()}`;
+            wsStatusBarItem.tooltip = `WebSocket实时数据 | 卖出价: ${data[0].ask} | 买入价: ${data[0].bid} | 更新时间: ${new Date().toLocaleTimeString()}`;
           }
         } catch (error) {
           console.error("解析WebSocket消息失败:", error);
@@ -165,20 +228,30 @@ function setupWebSocket(wsStatusBarItem) {
 function activate(context) {
   console.log('扩展"黄金价格监控"已激活');
 
-  // 创建HTTP状态栏项
+  // 创建HTTP状态栏项(民生)
   const httpStatusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     100
   );
-  httpStatusBarItem.text = `$(cloud) HTTP金价: 加载中...`;
-  httpStatusBarItem.tooltip = "点击刷新HTTP金价";
+  httpStatusBarItem.text = `$(cloud) 民生: 加载中...`;
+  httpStatusBarItem.tooltip = "点击刷新民生金价";
   httpStatusBarItem.command = "goldprice.refreshHttp";
   httpStatusBarItem.show();
+
+  // 创建浙商状态栏项
+  const zsStatusBarItem = vscode.window.createStatusBarItem(
+    vscode.StatusBarAlignment.Left,
+    99
+  );
+  zsStatusBarItem.text = `$(package) 浙商: 加载中...`;
+  zsStatusBarItem.tooltip = "点击刷新浙商金价";
+  zsStatusBarItem.command = "goldprice.refreshZS";
+  zsStatusBarItem.show();
 
   // 创建WebSocket状态栏项
   const wsStatusBarItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
-    99
+    98
   );
   wsStatusBarItem.text = `$(radio-tower) WS金价: 连接中...`;
   wsStatusBarItem.tooltip = "点击重连WebSocket";
@@ -189,12 +262,26 @@ function activate(context) {
   async function updateHttpPrice() {
     try {
       const price = await fetchGoldPrice();
-      httpStatusBarItem.text = `$(cloud) ${price}`;
-      httpStatusBarItem.tooltip = `HTTP数据 | 更新时间: ${new Date().toLocaleTimeString()}`;
+      httpStatusBarItem.text = `$(cloud) 民生: ${price}`;
+      httpStatusBarItem.tooltip = `民生数据 | 更新时间: ${new Date().toLocaleTimeString()}`;
       return price;
     } catch (error) {
-      httpStatusBarItem.text = `$(error) HTTP金价: 获取失败`;
+      httpStatusBarItem.text = `$(error) 民生: 获取失败`;
       httpStatusBarItem.tooltip = `错误: ${error.message}`;
+      return null;
+    }
+  }
+
+  // 更新浙商金价显示
+  async function updateZSPrice() {
+    try {
+      const price = await fetchZSGoldPrice();
+      zsStatusBarItem.text = `$(package) 浙商: ${price}`;
+      zsStatusBarItem.tooltip = `浙商积存金 | 更新时间: ${new Date().toLocaleTimeString()}`;
+      return price;
+    } catch (error) {
+      zsStatusBarItem.text = `$(error) 浙商: 获取失败`;
+      zsStatusBarItem.tooltip = `错误: ${error.message}`;
       return null;
     }
   }
@@ -203,7 +290,15 @@ function activate(context) {
   const refreshHttpCommand = vscode.commands.registerCommand(
     "goldprice.refreshHttp",
     async () => {
-      const price = await updateHttpPrice();
+      await updateHttpPrice();
+    }
+  );
+
+  // 注册浙商刷新命令
+  const refreshZSCommand = vscode.commands.registerCommand(
+    "goldprice.refreshZS",
+    async () => {
+      await updateZSPrice();
     }
   );
 
@@ -221,6 +316,7 @@ function activate(context) {
     "goldprice.refresh",
     async () => {
       await updateHttpPrice();
+      await updateZSPrice();
       reconnectAttempts = 0;
       setupWebSocket(wsStatusBarItem);
     }
@@ -236,11 +332,22 @@ function activate(context) {
     httpInterval = setInterval(updateHttpPrice, config.httpRefreshInterval);
   }
 
+  // 设置浙商定时更新
+  let zsInterval = null;
+  function setupZSInterval() {
+    const config = getConfig();
+    if (zsInterval) {
+      clearInterval(zsInterval);
+    }
+    zsInterval = setInterval(updateZSPrice, config.httpRefreshInterval);
+  }
+
   // 监听配置变更
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration("gold")) {
         setupHttpInterval();
+        setupZSInterval();
         setupWebSocket(wsStatusBarItem);
       }
     })
@@ -248,13 +355,16 @@ function activate(context) {
 
   // 注册资源到订阅中以便自动清理
   context.subscriptions.push(httpStatusBarItem);
+  context.subscriptions.push(zsStatusBarItem);
   context.subscriptions.push(wsStatusBarItem);
   context.subscriptions.push(refreshHttpCommand);
+  context.subscriptions.push(refreshZSCommand);
   context.subscriptions.push(refreshWsCommand);
   context.subscriptions.push(refreshAllCommand);
   context.subscriptions.push({
     dispose: () => {
       if (httpInterval) clearInterval(httpInterval);
+      if (zsInterval) clearInterval(zsInterval);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) ws.close();
     },
@@ -262,7 +372,9 @@ function activate(context) {
 
   // 首次更新金价并设置定时更新
   updateHttpPrice();
+  updateZSPrice();
   setupHttpInterval();
+  setupZSInterval();
 
   // 设置WebSocket连接
   setupWebSocket(wsStatusBarItem);

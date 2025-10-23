@@ -19,6 +19,7 @@
     "onStartupFinished",
     "onCommand:goldprice.refresh",
     "onCommand:goldprice.refreshHttp",
+    "onCommand:goldprice.refreshZS",
     "onCommand:goldprice.refreshWs"
   ],
   "main": "./extension.js",
@@ -30,7 +31,11 @@
       },
       {
         "command": "goldprice.refreshHttp",
-        "title": "刷新黄金价格(HTTP)"
+        "title": "刷新黄金价格(民生)"
+      },
+      {
+        "command": "goldprice.refreshZS",
+        "title": "刷新黄金价格(浙商)"
       },
       {
         "command": "goldprice.refreshWs",
@@ -52,8 +57,8 @@
         },
         "gold.wsUrl": {
           "type": "string",
-          "default": "wss://webhqv1.jrjr.com:39920/ws",
-          "description": "WebSocket服务器地址"
+          "default": "wss://alb-1ko0lowmvacsqia0ij.cn-shenzhen.alb.aliyuncs.com:26203",
+          "description": "WebSocket服务器备用地址(动态获取失败时使用)"
         },
         "gold.wsReconnectInterval": {
           "type": "number",
