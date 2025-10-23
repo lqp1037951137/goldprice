@@ -1,31 +1,71 @@
-# 黄金价格监控 VS Code 扩展
+# 京东积存金黄金价格监控 VS Code 扩展
 
-这个VS Code扩展在状态栏显示实时黄金价格。
+这个VS Code扩展在状态栏实时显示京东黄金价格,支持多个数据源。
 
 ## 功能
 
-- 在状态栏显示黄金价格
-- 支持HTTP和WebSocket两种数据源
-- 点击状态栏项可手动刷新数据
+- **三种数据源同时显示**
+  - 民生积存金 (HTTP轮询)
+  - 浙商积存金 (HTTP轮询)
+  - 伦敦金实时金价 (动态获取ws地址)
+
+- **实时更新**: 自动定时刷新价格数据
+- **手动刷新**: 点击状态栏项可手动刷新对应数据源
+- **自动重连**: WebSocket断线自动重连(最多5次)
+- **动态链接**: WebSocket服务器地址自动从API获取,失败时使用备用地址
 
 ## 要求
 
-- VS Code 1.74.0 或更高版本
+- VS Code 1.60.0 或更高版本
 
 ## 安装
 
-通过扩展视图搜索并安装，或者通过VSIX文件安装。
+通过扩展视图搜索并安装,或者通过VSIX文件安装。
 
 ## 使用方法
 
-安装后，黄金价格将显示在VS Code状态栏的左侧。点击状态栏项可以手动刷新数据。
+安装后,状态栏左侧会显示三个金价监控项(从左到右):
+
+1. **民生**: 显示民生金价
+2. **浙商**: 显示浙商积存金价格
+3. **伦敦金**: 显示伦敦金实时金价
+
+点击任意状态栏项可手动刷新对应数据源。
+
+## 命令
+
+通过命令面板 (`Ctrl+Shift+P` 或 `Cmd+Shift+P`) 可以执行以下命令:
+
+- `刷新黄金价格(所有数据源)`: 刷新所有三个数据源
+- `刷新黄金价格(民生)`: 仅刷新民生金价
+- `刷新黄金价格(浙商)`: 仅刷新浙商金价
+- `刷新黄金价格(WebSocket)`: 重连WebSocket
 
 ## 扩展设置
 
-* `gold.httpUrl`: HTTP API地址
-* `gold.wsUrl`: WebSocket服务器地址
-* `gold.httpRefreshInterval`: HTTP请求刷新间隔(毫秒)
-* `gold.wsReconnectInterval`: WebSocket断线重连间隔(毫秒)
+本扩展提供以下设置项:
+
+* `gold.httpUrl`: 民生HTTP API地址 (默认: `https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice`)
+* `gold.httpRefreshInterval`: HTTP请求刷新间隔,单位毫秒 (默认: `3000`)
+* `gold.wsUrl`: WebSocket服务器备用地址,动态获取失败时使用 (默认: `wss://alb-1ko0lowmvacsqia0ij.cn-shenzhen.alb.aliyuncs.com:26203`)
+* `gold.wsReconnectInterval`: WebSocket断线重连间隔,单位毫秒 (默认: `5000`)
+
+## 数据源说明
+
+### 民生金价
+- 通过HTTP轮询获取
+- 默认每3秒更新一次
+
+### 浙商积存金
+- 通过HTTP POST方式获取
+- 默认每3秒更新一次
+- 产品SKU: 1961543816
+
+### 伦敦金实时金价
+- 自动从API获取最新的WebSocket服务器地址
+- 实时推送金价数据(买入价和卖出价)
+- 显示买入价,鼠标悬停可查看详细信息
+- 支持自动重连(最多5次)
 
 ## 已知问题
 
@@ -33,68 +73,12 @@
 
 ## 发布说明
 
-### 0.0.3
+### 0.0.4
 
-初始版本，支持HTTP和WebSocket两种数据源。
-
-## Features
-
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+- 支持民生、浙商、WebSocket三种数据源
+- WebSocket动态获取服务器地址
+- 自动重连和降级机制
 
 ---
 
-## Working with Markdown
-
-You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+**享受实时金价监控!**

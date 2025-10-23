@@ -2,7 +2,7 @@
   "name": "gold",
   "displayName": "黄金价格监控",
   "description": "在VS Code状态栏显示实时黄金价格",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "goldprice",
   "repository": {
     "type": "git",
