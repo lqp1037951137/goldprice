@@ -184,7 +184,7 @@ async function setupWebSocket(wsStatusBarItem) {
           if (data && data.length && data[0].symbol === "GOLD") {
             const price = data[0].bid; // 使用买入价
             wsStatusBarItem.text = `$(radio-tower) ${price}`;
-            wsStatusBarItem.tooltip = `WebSocket实时数据 | 卖出价: ${data[0].ask} | 买入价: ${data[0].bid} | 更新时间: ${new Date().toLocaleTimeString()}`;
+            wsStatusBarItem.tooltip = `伦敦金 | 卖出价: ${data[0].ask} | 买入价: ${data[0].bid} | 更新时间: ${new Date().toLocaleTimeString()}`;
           }
         } catch (error) {
           console.error("解析WebSocket消息失败:", error);
