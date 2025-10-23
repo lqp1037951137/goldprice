@@ -20,7 +20,30 @@
 
 ## 安装
 
-通过扩展视图搜索并安装,或者通过VSIX文件安装。
+前往 [Releases 页面](https://github.com/lqp1037951137/goldprice/releases) 下载最新版本的 `.vsix` 文件。
+
+### 安装步骤
+
+1. **下载扩展文件**
+   - 访问 [Releases 页面](https://github.com/lqp1037951137/goldprice/releases)
+   - 下载最新版本的 `.vsix` 文件（例如：`goldprice-0.0.4.vsix`）
+
+2. **安装到 VS Code**
+
+   方法一：通过 VS Code 界面安装
+   - 打开 VS Code
+   - 点击左侧活动栏的扩展图标（或按 `Ctrl+Shift+X` / `Cmd+Shift+X`）
+   - 点击扩展视图右上角的 `...` 菜单
+   - 选择 "从 VSIX 安装..."
+   - 选择下载的 `.vsix` 文件
+
+   方法二：通过命令行安装
+   ```bash
+   code --install-extension goldprice-0.0.4.vsix
+   ```
+
+3. **重启 VS Code**
+   - 安装完成后，重启 VS Code 即可在状态栏看到金价监控项
 
 ## 使用方法
 
