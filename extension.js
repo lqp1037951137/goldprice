@@ -1,5 +1,6 @@
 // 黄金价格监控扩展
 const vscode = require("vscode");
+const crypto = require("crypto");
 const WebSocket = require("ws");
 
 // 全局变量
@@ -50,7 +51,10 @@ function getConfig() {
       "https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice"
     ),
     httpRefreshInterval: config.get("httpRefreshInterval", 3000),
-    wsUrl: config.get("wsUrl", "wss://webhqv1.jrjr.com:39920/ws"),
+    wsUrl: config.get(
+      "wsUrl",
+      "wss://alb-1ko0lowmvacsqia0ij.cn-shenzhen.alb.aliyuncsslb.com:26203"
+    ),
     wsReconnectInterval: config.get("wsReconnectInterval", 5000),
   };
 }
@@ -77,6 +81,24 @@ function throttle(func, limit) {
   };
 }
 
+// AES-256-CBC 解密 getDomainInfo 返回的 en_data
+function decryptDomainInfo(enDataBase64) {
+  const encrypted = Buffer.from(enDataBase64, "base64");
+  // 前 16 字节是 IV，剩余部分是密文
+  const iv = encrypted.subarray(0, 16);
+  const ciphertext = encrypted.subarray(16);
+  const key = Buffer.from(
+    "JkiBZH1JS2QH2gNpweehCAiUJzOgIwvIqsndqGGgu8E=",
+    "base64"
+  );
+  const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
+  const decrypted = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]).toString("utf8");
+  return JSON.parse(decrypted);
+}
+
 // 获取动态WebSocket链接
 async function fetchWebSocketUrl() {
   try {
@@ -95,17 +117,24 @@ async function fetchWebSocketUrl() {
     }
 
     const data = await response.json();
-    if (data.code === 0 && data.data && data.data.hq_ws_links) {
-      // 获取hq_ws_links中的第一条
-      const wsLinks = data.data.hq_ws_links;
-      const firstKey = Object.keys(wsLinks)[0];
-      if (firstKey && wsLinks[firstKey]) {
-        const wsUrl = wsLinks[firstKey];
-        console.log("获取到动态WebSocket链接:", wsUrl, `(key: ${firstKey})`);
-        return wsUrl;
-      }
+    if (data.code !== 0 || !data.data || !data.data.en_data) {
+      throw new Error("响应数据格式错误");
     }
-    throw new Error("响应数据格式错误");
+
+    // en_data 为 AES-256-CBC 加密，解密后读取 hq_ws_links
+    const config = decryptDomainInfo(data.data.en_data);
+    const wsLinks = config.hq_ws_links;
+    if (!wsLinks || typeof wsLinks !== "object") {
+      throw new Error("解密结果中缺少 hq_ws_links");
+    }
+
+    const firstKey = Object.keys(wsLinks)[0];
+    if (firstKey && wsLinks[firstKey]) {
+      const wsUrl = wsLinks[firstKey];
+      console.log("获取到动态WebSocket链接:", wsUrl, `(key: ${firstKey})`);
+      return wsUrl;
+    }
+    throw new Error("hq_ws_links 为空");
   } catch (error) {
     console.error("获取动态WebSocket链接失败:", error);
     throw error;

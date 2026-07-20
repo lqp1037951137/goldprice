@@ -25,7 +25,8 @@ vsce package
 **extension.js** - 主入口文件,包含所有核心逻辑:
 - `activate()`: 扩展激活时创建三个状态栏项(民生HTTP、浙商、WebSocket),设置定时更新和事件监听
 - `deactivate()`: 清理WebSocket连接和定时器
-- `fetchWebSocketUrl()`: 从API动态获取WebSocket链接地址
+- `fetchWebSocketUrl()`: 从API动态获取WebSocket链接地址(解密 `en_data` 后读取 `hq_ws_links`)
+- `decryptDomainInfo()`: 使用 AES-256-CBC 解密 `getDomainInfo` 返回的 `en_data`
 - `setupWebSocket()`: 异步建立WebSocket连接,先获取动态链接,失败则使用备用链接,处理消息、错误和自动重连(最多5次)
 - `fetchGoldPrice()`: 获取民生金价(HTTP方式)
 - `fetchZSGoldPrice()`: 获取浙商积存金价格(HTTP POST方式)
@@ -46,7 +47,8 @@ vsce package
 
 3. **WebSocket数据源** (`setupWebSocket`)
    - 动态获取链接: 先通过 `https://www.jrjr.com/api/getDomainInfo` 获取动态链接
-   - 使用 `data.hq_ws_links` 对象中的第一条记录作为WebSocket服务器地址
+   - 接口返回的 `data.en_data` 为 AES-256-CBC 加密(前16字节为IV,剩余为密文),解密后得到配置对象
+   - 使用解密结果中 `hq_ws_links` 对象的第一条记录作为WebSocket服务器地址
    - 备用链接: 配置中的 `gold.wsUrl` (动态获取失败时使用)
    - 实时推送金价数据
    - 消息格式: `[{symbol: "GOLD", ask: price, bid: price, ...}]`

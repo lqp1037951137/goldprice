@@ -26,7 +26,7 @@
 
 1. **下载扩展文件**
    - 访问 [Releases 页面](https://github.com/lqp1037951137/goldprice/releases)
-   - 下载最新版本的 `.vsix` 文件（例如：`goldprice-0.0.4.vsix`）
+   - 下载最新版本的 `.vsix` 文件（例如：`gold-0.0.5.vsix`）
 
 2. **安装到 VS Code**
 
@@ -39,7 +39,7 @@
 
    方法二：通过命令行安装
    ```bash
-   code --install-extension goldprice-0.0.4.vsix
+   code --install-extension gold-0.0.5.vsix
    ```
 
 3. **重启 VS Code**
@@ -70,7 +70,7 @@
 
 * `gold.httpUrl`: 民生HTTP API地址 (默认: `https://api.jdjygold.com/gw/generic/hj/h5/m/latestPrice`)
 * `gold.httpRefreshInterval`: HTTP请求刷新间隔,单位毫秒 (默认: `3000`)
-* `gold.wsUrl`: WebSocket服务器备用地址,动态获取失败时使用 (默认: `wss://alb-1ko0lowmvacsqia0ij.cn-shenzhen.alb.aliyuncs.com:26203`)
+* `gold.wsUrl`: WebSocket服务器备用地址,动态获取失败时使用 (默认: `wss://alb-1ko0lowmvacsqia0ij.cn-shenzhen.alb.aliyuncsslb.com:26203`)
 * `gold.wsReconnectInterval`: WebSocket断线重连间隔,单位毫秒 (默认: `5000`)
 
 ## 数据源说明
@@ -95,6 +95,11 @@
 暂无已知问题。
 
 ## 发布说明
+
+### 0.0.5
+
+- WebSocket 域名接口改为解密 `en_data`（AES-256-CBC）后读取 `hq_ws_links`
+- 更新 WebSocket 备用地址
 
 ### 0.0.4
 
